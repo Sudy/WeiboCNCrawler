@@ -2,6 +2,7 @@
 #-*- coding:utf-8 -*-
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from Queue import Queue
+import json
 
 class Dispatcher(object):
 
@@ -41,34 +42,17 @@ class Dispatcher(object):
 			"type":0
 			}
 			line = fp.readline()
-			self.addToQueue(postdata)
+			self.addToQueue(json.dumps(postdata))
 		fp.close()
 		print "initSeedUser successful"
 		
 	def addToQueue(self,postdata):
-		
-		print postdata
 
-		if 2 == postdata["type"]:
-			weibo_ids = postdata["weibo_ids"]
-			postdata.pop("weibo_ids")
-			
-			for item in weibo_ids:
-				postdata["cid"] = item
-				#crawl its comment
-				postdata["base_url"] = "http://weibo.cn/comment/"
-				postdata["type"] = 2
-
-				self.addToQueue(postdata)
-				#crawl its repost
-				postdata["base_url"] = "http://weibo.cn/repost/"
-				postdata["type"] = 3
-				print postdata
-				self.addToQueue(postdata)
-		else:
-			self.url_queue.put(postdata)
+		print "seed data ",postdata,"add to queue"
+		self.url_queue.put(postdata)
 
 	def getAccount(self):
+		
 		if True == self.account_queue.empty():
 			return 0,0
 		else:
@@ -78,22 +62,23 @@ class Dispatcher(object):
 	#if the queue is empty and
 	#the client have tried more five time
 	def removeFromQueue(self):
+
 		if True == self.url_queue.empty():
 			return 0
 		else:
-			print "current size" + str(self.url_queue.size() - 1)
+			print "current size" + str(self.url_queue.qsize() - 1)
 			postdata =  self.url_queue.get()
+
+			#save the value to old_postdata
+			old_postdata = postdata
 			#if there is a page num
 			if postdata["type"] in [1,4,5] and int(postdata["page_num"])  > 1:
-				#save the value to old_postdata
-				old_postdata = postdata
 				#change the page_num value and save it back
 				postdata["page_num"] = str(int(postdata["page_num"]) - 1)
-				self.addToQueue(postdata)  
+				self.addToQueue(json.dumps(postdata))  
+			return old_postdata
 
 
-
-dispatcher = Dispatcher()
-server = SimpleXMLRPCServer(("192.168.3.48",8000))
-server.register_instance(dispatcher)
+server = SimpleXMLRPCServer(("172.17.161.101",8000),allow_none = True)
+server.register_instance(Dispatcher())
 server.serve_forever()

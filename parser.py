@@ -5,6 +5,7 @@ import urllib2
 import lxml.html as HTML
 import re
 import xmlrpclib
+import json
 
 class Parser(object):
 	"""docstring for Parser"""
@@ -23,49 +24,57 @@ class Parser(object):
 
 		self.mid_pattern = re.compile("M_([A-Za-z0-9]{9})")
 		self.cid_pattern = re.compile("C_([0-9]{16})")
-		self.server = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
+		self.server = xmlrpclib.ServerProxy("http://172.17.161.101:8000")
 
 
-    #OK
-	def get_html_content(self,url):
-		req = urllib2.Request(url, headers=self.headers)
-		return urllib2.urlopen(req).read()
-	#OK
+    #get html content of a given url
+	def get_html_content(self,url,trytime):
+
+		if trytime > 5:
+			print "try " + url + " for more than five times"
+			return None
+		try:
+			req = urllib2.Request(url, headers=self.headers)
+			return urllib2.urlopen(req,timeout=10).read()
+		except:
+			self.get_html_content(url,trytime + 1)
+		
+
 	def get_post_time(self,html):
 		time = HTML.fromstring(html).xpath(self.xpath_rule["post_time"])
 		#[i.split(" ") for i in time]
 		return time
 
-	#OK
-	def get_uid(self,html):
+
+	def get_post_uid(self,html):
 		uid  = HTML.fromstring(html).xpath(self.xpath_rule["user_id"])
 		return uid[2:-2]
-	#OK
+
 	def get_repost_time(self,html):
 		uid  = HTML.fromstring(html).xpath(self.xpath_rule["repost_time"])
 		return uid
-	#OK
+
 	def get_comment_content(self,html):
 		comm_cnt = HTML.fromstring(html).xpath(self.xpath_rule["comment_content"])
 		return self.deal_id_content(comm_cnt[1:],self.cid_pattern)
-	#OK
+
 	def get_repost_content(self,html):
 		repost_cnt = HTML.fromstring(html).xpath(self.xpath_rule["repost_content"])
 		return repost_cnt[3:]
-    #OK
+   
 	def get_weibo_content(self,html):
 		#get weibo content
 		ctt = HTML.fromstring(html).xpath(self.xpath_rule["weibo_content"])
 		return self.deal_id_content(ctt,self.mid_pattern)
-	#OK			
+			
 	def get_repostetc(self,html):
 		num = HTML.fromstring(html).xpath(self.xpath_rule["repostetc"])
 		repostetc = list()
 		for i in range(0,len(num)-1):
 			if 3 != i%4:
 				repostetc.append(num[i])
-		return repostetc
-	#OK
+		return repostetc[0::4]
+
 	def get_page_num(self,html):
 		page_num = HTML.fromstring(html).xpath(self.xpath_rule["page_num"])
 		if None != page_num and int(page_num[0]) > 1:
@@ -89,12 +98,13 @@ class Parser(object):
 				id_cnt.append(mid_match.group(1))
 			elif "" != ct:
 				content += ct.strip()
-		id_cnt.append(content)	
+		if "" != content:
+			id_cnt.append(content)	
 		return id_cnt
 
 	def parse_weibo(self,html,uid):
 		#mid,content
-		mid_content = self.get_weibo_content(html,self.mid_pattern)
+		mid_content = self.get_weibo_content(html)
 		#comment,repost,like num
 		self.get_repostetc(html)
 		#post time
@@ -105,14 +115,30 @@ class Parser(object):
 		"rl":"0",
 		"vt":"4",
 		"uid":uid,
-		"weibo_ids":mid_content[::2],
+		"cid":"",
 		"type":2
 		}
 
-		self.server.addToQueue(postdata)
 
+		print "parse_weibo"	
+		for item in mid_content[::2]:
+			postdata["cid"] = item
+			#crawl its comment
+			postdata["base_url"] = "http://weibo.cn/comment/"
+			postdata["type"] = 2
+			print postdata
+			self.server.addToQueue(json.dumps(postdata))
+
+			#crawl its repost
+			postdata["base_url"] = "http://weibo.cn/repost/"
+			postdata["type"] = 3
+			print postdata
+			self.server.addToQueue(json.dumps(postdata))
+
+		
 
 	def parse_weibo_first_page(self,html,uid):
+		print "--------------parse_weibo_first_page"
 		self.parse_weibo(html,uid)
 		page_num = self.get_page_num(html)
 		
@@ -125,14 +151,17 @@ class Parser(object):
 			"page_num":page_num,
 			"type":1
 			}
-			self.server.addToQueue(postdata)
+			print postdata
+			self.server.addToQueue(json.dumps(postdata))
+			
+			
 
 	def parse_repost(self,html):
 		
-		self.get_uid(html)
+		self.get_post_uid(html)
 		self.get_repost_content(html)
 		self.get_repost_time(html)
-
+		print "parse_repost"
 
 
 	def parse_repost_firstpage(self,html,uid,cid):
@@ -147,15 +176,19 @@ class Parser(object):
 			"page_num":repost_page_num,
 			"type":5
 			}
-			#self.server.addToQueue(postdata)
+			print "parse_repost_firstpage"
+			print postdata
+			self.server.addToQueue(json.dumps(postdata))
+		
 
 
 	def parse_comment(self,html):
 		self.get_comment_content(html)
 		self.get_post_uid(html)
 		self.get_post_time(html)
+		print "parse_comment"
 
-	def parse_comment_firstpage(self,html,cid):
+	def parse_comment_firstpage(self,html,uid,cid):
 		self.parse_comment(html)
 		cnt_page_num = self.get_page_num(html)
 		
@@ -167,15 +200,18 @@ class Parser(object):
 			"page_num":cnt_page_num,
 			"type":4
 			}
-			self.server.addToQueue(postdata)
+			print "parse_comment_firstpage"
+			print postdata
+			self.server.addToQueue(json.dumps(postdata))
 
 
 	def test(self):
-		req = urllib2.Request("http://weibo.cn/xinlangsichuan?vt=4&gsid=4utD1a1a1I32ESqk4qGQpartGdX&st=af84",\
+		req = urllib2.Request("http://weibo.cn/repost/A8noHzU9c?uid=2052120021&rl=0&vt=4&gsid=4uOd68b81uHd0N3WQQs0JartGdX&st=6317",\
 			headers=self.headers)
 		html_text = urllib2.urlopen(req).read()
-		ctt = self.get_repostetc(html_text)
-		print len(ctt)
+
+		ctt = self.get_repost_time(html_text)
+		#print ctt
 		for c in ctt:
 			print c
 		

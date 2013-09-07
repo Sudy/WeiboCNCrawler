@@ -7,7 +7,7 @@ import cookielib
 import lxml.html as HTML
 import re
 
-class Fetcher(object):
+class SimulateLoginer(object):
 	def __init__(self, username=None, pwd=None):
 
 		#browser proxy
@@ -32,13 +32,13 @@ class Fetcher(object):
 		return action, passwd, vk
 
 	def login(self, username=None, pwd=None):
-		if self.username is None or self.pwd is None:
+		if self.username is None or self.passwd is None:
 			self.username = username
-			self.pwd = pwd
+			self.passwd = pwd
 		action, passwd, vk = self.get_param()
 
 		data = urllib.urlencode({'mobile': self.username,
-								  passwd: self.pwd,
+								  passwd: self.passwd,
 								 'remember': 'on',
 								 'backURL': 'http://weibo.cn/',
 								 'backTitle': '新浪微博',
@@ -76,7 +76,6 @@ class Fetcher(object):
 		pattern = re.compile("gsid=(.*?)&")
 		
 		gsid = 0
-		
 		try:
 			gsid = pattern.search(redirect_link).group(1)
 		except:
@@ -86,5 +85,5 @@ class Fetcher(object):
 
 
 if __name__ == '__main__':
-	f = Fetcher()
-	f.login("weibotest0002@163.com","iamwangbiao")
+	f = SimulateLoginer("weibotest0002@163.com","iamwangbiao")
+	print f.login()

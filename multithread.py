@@ -6,6 +6,8 @@ import threading
 from weibocn import SimulateLoginer
 from parser import Parser
 import time
+import random
+
 
 class Crawler(threading.Thread):
     #The timer class is derived from the class threading.Thread  
@@ -16,10 +18,10 @@ class Crawler(threading.Thread):
         #try up to five times to get a url seed
         self.try_get_url_seed = 0
         #connect the server
-        server = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
+        self.server = xmlrpclib.ServerProxy("http://172.17.161.101:8000")
 
 
-        self.parse = Parser()
+        self.parser = Parser()
 
         #function  map dealing with different type
         self.func_map = { 
@@ -30,21 +32,26 @@ class Crawler(threading.Thread):
         4:self.deal_type4,
         4:self.deal_type5,
         }
+        self.gsid = "4uNrb1c01QZjnhvLHZAmvarK09p"
+        #self.get_an_gsid()
 
     def get_an_gsid(self):
         #get ussername and password
-        usrname,passwd = server.getAccount()
+        usrname,passwd = self.server.getAccount()
         
-        if usrname,passwd == 0,0:
+        if (usrname,passwd) == (0,0):
             print "no more account available"
             self.thread_stop = True
+            return 0
 
         #simulate the login process
         simulateLoginer = SimulateLoginer(usrname,passwd)        
         #login to the weibo and get gsid
         self.gsid = simulateLoginer.login()
+        print self.gsid
         
         if 0 == self.gsid:
+            time.sleep(3)
             self.get_an_gsid()
 
     #type 0 is the seed user
@@ -62,10 +69,11 @@ class Crawler(threading.Thread):
         url = postdata["base_url"]
         url += postdata["uid"] + "?"
         url += "vt=" + postdata["vt"] + "&"
-        url += self.gsid
+        url += "gsid=" + self.gsid
         print "type0:",url 
-        html = self.parser.get_html_content(url)
-        self.parser.parse_weibo_first_page(html,postdata["uid"])
+        html = self.parser.get_html_content(url,0)
+        if None != html:
+            self.parser.parse_weibo_first_page(html,postdata["uid"])
 
     '''
         postdata = {
@@ -81,11 +89,12 @@ class Crawler(threading.Thread):
         url += postdata["uid"] + "?"
         url += "vt=" + postdata["vt"] + "&"
         url += "page=" + postdata[page_num] + "&"
-        url += self.gsid
+        url += "gsid=" + self.gsid
 
         print "type1:",url
-        html = self.parser.get_html_content(url)
-        self.parser.parse_weibo(html,postdata["uid"])
+        html = self.parser.get_html_content(url,0)
+        if None != html:
+            self.parser.parse_weibo(html,postdata["uid"])
 
     '''
         postdata = {
@@ -104,12 +113,13 @@ class Crawler(threading.Thread):
         url += "uid=" + postdata["uid"] + "&"
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
-        url += self.gsid 
+        url += "gsid=" + self.gsid 
 
         print "type2",url
 
-        html = self.parser.get_html_content(url)
-        self.parser.parse_comment_firstpage(html,postdata["uid"],postdata["cid"])
+        html = self.parser.get_html_content(url,0)
+        if None != html:
+            self.parser.parse_comment_firstpage(html,postdata["uid"],postdata["cid"])
 
     '''
         postdata = {
@@ -127,10 +137,11 @@ class Crawler(threading.Thread):
         url += "uid=" + postdata["uid"] + "&"
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
-        url += self.gsid 
+        url += "gsid=" + self.gsid 
         print "type2",url
-        html = self.parser.get_html_content(url)
-        self.parser.parse_repost_firstpage(html,postdata["uid"],postdata["cid"])
+        html = self.parser.get_html_content(url,0)
+        if None != html:
+            self.parser.parse_repost_firstpage(html,postdata["uid"],postdata["cid"])
 
     '''
     postdata = {
@@ -148,9 +159,10 @@ class Crawler(threading.Thread):
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
         url += "page=" + postdata["page_num"] + "&"
-        url += self.gsid 
-        html = self.parser.get_html_content(url)
-        self.parser.parse_comment(html)
+        url += "gsid=" + self.gsid 
+        html = self.parser.get_html_content(url,0)
+        if None != html:
+            self.parser.parse_comment(html)
 
 
     '''
@@ -169,16 +181,17 @@ class Crawler(threading.Thread):
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
         url += "page=" + postdata["page_num"] + "&"
-        url += self.gsid 
-        html = self.parser.get_html_content(url)
-        self.parser.parse_comment(html)
-        pass
+        url += "gsid=" + self.gsid 
+        html = self.parser.get_html_content(url,0)
+        if None != html:
+            self.parser.parse_repost(html)
                                         
     def run(self):
      #Overwrite run() method, put what you want the thread do here  
         while not self.thread_stop and self.try_get_url_seed < 5:  
             
-            item = server.get()
+            item = self.server.removeFromQueue()
+            print "item got from dispatcher",item
             #no more urls
             if 0 == item:
                 time.sleep(5)
@@ -187,7 +200,16 @@ class Crawler(threading.Thread):
             else:
                 #deal with the data
                 self.func_map[item["type"]](item)
+                time.sleep(random.randint(3,5))
 
 
     def stop(self):  
-        self.thread_stop = True  
+        self.thread_stop = True
+
+
+if __name__ == "__main__":
+    #for i in range(0,1):
+    thread = Crawler()
+    thread.start()
+    #    print "thread  " + str(i) + "started"
+    #    time.sleep(1)  
