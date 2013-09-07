@@ -10,11 +10,6 @@ import re
 class Fetcher(object):
 	def __init__(self, username=None, pwd=None):
 
-		cookiejar =  cookielib.LWPCookieJar()
-		cookie_support = urllib2.HTTPCookieProcessor(cookiejar)
-		opener = urllib2.build_opener(cookie_support, urllib2.HTTPHandler)
-		urllib2.install_opener(opener)
-
 		#browser proxy
 		self.headers= {'User-Agent':'Mozilla/5.0 (X11; Linux i686; rv:8.0) Gecko/20100101 Firefox/8.0'}
 
@@ -62,7 +57,7 @@ class Fetcher(object):
 		redirect_link = self.redirect(page)
 
 		#get the gsid which is similar to token
-		self.get_gsid(redirect_link)
+		return self.get_gsid(redirect_link)
 
 	def redirect(self,page):
 		
@@ -79,18 +74,16 @@ class Fetcher(object):
 	#find the gsid 
 	def get_gsid(self,redirect_link):
 		pattern = re.compile("gsid=(.*?)&")
-		gsid = pattern.search(redirect_link).group(1)
+		
+		gsid = 0
+		
+		try:
+			gsid = pattern.search(redirect_link).group(1)
+		except:
+			gsid = 0
+		
 		return gsid
 
-	def fetch(self,fetch_url):
-		req = urllib2.Request(fetch_url, headers=self.headers)
-		print urllib2.urlopen(req).read()
-
-	def get_weibo(self,uid,page):
-		base_url = "http://weibo.cn/"
-		base_url += uid + "&"
-		base_url += uid + "&"
-	    base_url += uid + "&"
 
 if __name__ == '__main__':
 	f = Fetcher()

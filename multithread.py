@@ -17,29 +17,35 @@ class Crawler(threading.Thread):
         self.try_get_url_seed = 0
         #connect the server
         server = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
-        #get ussername and password
-        usrname,passwd = server.getAccount()
-        
-        if usrname,passwd == 0,0:
-            print "no more account available"
-            return
-        #simulate the login process
-        simulateLoginer = SimulateLoginer(usrname,passwd)
-        
-        #login to the weibo and get gsid
-        self.gsid = simulateLoginer.login()
+
 
         self.parse = Parser()
 
         #function  map dealing with different type
-        self.func_map = {
-        
+        self.func_map = { 
         0:self.deal_type0,
         1:self.deal_type1,
         2:self.deal_type2,
         3:self.deal_type3,
         4:self.deal_type4,
+        4:self.deal_type5,
         }
+
+    def get_an_gsid(self):
+        #get ussername and password
+        usrname,passwd = server.getAccount()
+        
+        if usrname,passwd == 0,0:
+            print "no more account available"
+            self.thread_stop = True
+
+        #simulate the login process
+        simulateLoginer = SimulateLoginer(usrname,passwd)        
+        #login to the weibo and get gsid
+        self.gsid = simulateLoginer.login()
+        
+        if 0 == self.gsid:
+            self.get_an_gsid()
 
     #type 0 is the seed user
     '''
@@ -87,14 +93,14 @@ class Crawler(threading.Thread):
         "rl":"0",
         "vt":"4",
         "uid":uid,
-        "weibo_id":id,
+        "cid":id,
         "type":2
         }
     '''
     def deal_type2(self,postdata):
         #http://weibo.cn/comment/A83UNd82V?uid=2200249730&rl=0&vt=4&gsid=4utD1a1a1I32ESqk4qGQpartGdX&st=af84#cmtfrm
         url = postdata["base_url"]
-        url += postdata["weibo_id"] + "?"
+        url += postdata["cid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
@@ -103,14 +109,15 @@ class Crawler(threading.Thread):
         print "type2",url
 
         html = self.parser.get_html_content(url)
-        self.parser.parse_comment_firstpage(html)
+        self.parser.parse_comment_firstpage(html,postdata["uid"],postdata["cid"])
 
     '''
-    postdata = {
-        "base_url":"http://weibo.cn/comment/",
+        postdata = {
+        "base_url":"http://weibo.cn/repost/",
+        "rl":"0",
+        "vt":"4",
         "uid":uid,
-        "cid":cid,
-        "page_num":cnt_page_num,
+        "cid":id,
         "type":3
         }
     '''
@@ -121,9 +128,50 @@ class Crawler(threading.Thread):
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
         url += self.gsid 
+        print "type2",url
+        html = self.parser.get_html_content(url)
+        self.parser.parse_repost_firstpage(html,postdata["uid"],postdata["cid"])
 
-        pass
+    '''
+    postdata = {
+        "base_url":"http://weibo.cn/comment/",
+        "uid":uid,
+        "cid":cid,
+        "page_num":cnt_page_num,
+        "type":4
+        }
+    '''
     def deal_type4(self,postdata):
+        url = postdata["base_url"]
+        url += postdata["cid"] + "?"
+        url += "uid=" + postdata["uid"] + "&"
+        url += "rl=" + postdata["rl"] + "&"
+        url += "vt=" + postdata["vt"] + "&"
+        url += "page=" + postdata["page_num"] + "&"
+        url += self.gsid 
+        html = self.parser.get_html_content(url)
+        self.parser.parse_comment(html)
+
+
+    '''
+    postdata = {
+        "base_url":"http://weibo.cn/repost/",
+        "uid":uid,
+        "cid":cid,
+        "page_num":repost_page_num,
+        "type":5
+    }
+    '''
+    def deal_type5(self,postdata):
+        url = postdata["base_url"]
+        url += postdata["cid"] + "?"
+        url += "uid=" + postdata["uid"] + "&"
+        url += "rl=" + postdata["rl"] + "&"
+        url += "vt=" + postdata["vt"] + "&"
+        url += "page=" + postdata["page_num"] + "&"
+        url += self.gsid 
+        html = self.parser.get_html_content(url)
+        self.parser.parse_comment(html)
         pass
                                         
     def run(self):

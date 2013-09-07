@@ -24,6 +24,7 @@ class Dispatcher(object):
 			self.account_queue.put((line[0],line[1]))
 			line = fp.readline()
 		fp.close()
+		print "initAvailableAccount successful"
 
 	#get all the seed users
 	def initSeedUser(self):
@@ -32,26 +33,38 @@ class Dispatcher(object):
 		line = fp.readline()
 		
 		while "" != line and not line.startswith("#"):
-			line = line.strip()
 			
 			postdata = {
 			"base_url":"http://weibo.cn/u/",
-			"uid":line,
+			"uid":line.strip(),
 			"vt":"4",
 			"type":0
 			}
 			line = fp.readline()
 			self.addToQueue(postdata)
 		fp.close()
+		print "initSeedUser successful"
 		
 	def addToQueue(self,postdata):
+		
 		print postdata
+
 		if 2 == postdata["type"]:
 			weibo_ids = postdata["weibo_ids"]
 			postdata.pop("weibo_ids")
+			
 			for item in weibo_ids:
-				postdata["weibo_id"] = item
-				self.addToQueue(item)
+				postdata["cid"] = item
+				#crawl its comment
+				postdata["base_url"] = "http://weibo.cn/comment/"
+				postdata["type"] = 2
+
+				self.addToQueue(postdata)
+				#crawl its repost
+				postdata["base_url"] = "http://weibo.cn/repost/"
+				postdata["type"] = 3
+				print postdata
+				self.addToQueue(postdata)
 		else:
 			self.url_queue.put(postdata)
 
@@ -71,7 +84,7 @@ class Dispatcher(object):
 			print "current size" + str(self.url_queue.size() - 1)
 			postdata =  self.url_queue.get()
 			#if there is a page num
-			if postdata["type"] in [1,3,4] and int(postdata["page_num"])  > 1:
+			if postdata["type"] in [1,4,5] and int(postdata["page_num"])  > 1:
 				#save the value to old_postdata
 				old_postdata = postdata
 				#change the page_num value and save it back

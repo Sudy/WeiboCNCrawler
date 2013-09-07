@@ -23,7 +23,7 @@ class Parser(object):
 
 		self.mid_pattern = re.compile("M_([A-Za-z0-9]{9})")
 		self.cid_pattern = re.compile("C_([0-9]{16})")
-		dispatcher = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
+		self.server = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
 
 
     #OK
@@ -68,8 +68,10 @@ class Parser(object):
 	#OK
 	def get_page_num(self,html):
 		page_num = HTML.fromstring(html).xpath(self.xpath_rule["page_num"])
-		return page_num[0]
-
+		if None != page_num and int(page_num[0]) > 1:
+			return page_num[0]
+		else:
+			return 0
 	def deal_id_content(self,ctt,pattern):
 
 		id_cnt = list()
@@ -97,17 +99,17 @@ class Parser(object):
 		self.get_repostetc(html)
 		#post time
 		self.get_post_time(html)
-		#http://weibo.cn/comment/A83UNd82V?uid=2200249730&rl=0&vt=4&gsid=4utD1a1a1I32ESqk4qGQpartGdX&st=af84#cmtfrm
-		#http://weibo.cn/repost/A83UNd82V?uid=2200249730&rl=0&vt=4&gsid=4utD1a1a1I32ESqk4qGQpartGdX&st=af84
+
 		postdata = {
-		"base_url":"http://weibo.cn/comment/",
+		"base_url":"",
 		"rl":"0",
 		"vt":"4",
 		"uid":uid,
 		"weibo_ids":mid_content[::2],
 		"type":2
 		}
-		server.addToQueue(postdata)
+
+		self.server.addToQueue(postdata)
 
 
 	def parse_weibo_first_page(self,html,uid):
@@ -123,9 +125,9 @@ class Parser(object):
 			"page_num":page_num,
 			"type":1
 			}
-			server.addToQueue(postdata)
+			self.server.addToQueue(postdata)
 
-	def parse_repost(self,html,uid):
+	def parse_repost(self,html):
 		
 		self.get_uid(html)
 		self.get_repost_content(html)
@@ -133,7 +135,7 @@ class Parser(object):
 
 
 
-	def parse_repost_firstpage(self,html,uid):
+	def parse_repost_firstpage(self,html,uid,cid):
 		self.parse_repost(html)
 		repost_page_num = self.get_page_num(html)
 
@@ -143,9 +145,9 @@ class Parser(object):
 			"uid":uid,
 			"cid":cid,
 			"page_num":repost_page_num,
-			"type":4
+			"type":5
 			}
-			server.addToQueue(postdata)
+			#self.server.addToQueue(postdata)
 
 
 	def parse_comment(self,html):
@@ -153,7 +155,7 @@ class Parser(object):
 		self.get_post_uid(html)
 		self.get_post_time(html)
 
-	def parse_comment_firstpage(self,html):
+	def parse_comment_firstpage(self,html,cid):
 		self.parse_comment(html)
 		cnt_page_num = self.get_page_num(html)
 		
@@ -163,9 +165,9 @@ class Parser(object):
 			"uid":uid,
 			"cid":cid,
 			"page_num":cnt_page_num,
-			"type":3
+			"type":4
 			}
-			server.addToQueue(postdata)
+			self.server.addToQueue(postdata)
 
 
 	def test(self):
