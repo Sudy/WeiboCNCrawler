@@ -5,7 +5,7 @@ import xmlrpclib
 import threading  
 from weibocn import SimulateLoginer
 from parser import Parser
-import time
+#import time
 import random
 import json
 
@@ -34,14 +34,20 @@ class Crawler(threading.Thread):
         5:self.deal_type5
         }
 
-        #self.time_eclapse = time.time()
-        self.gsid = "4uNrb1c01QZjnhvLHZAmvarK09p"
-        #self.get_an_gsid()
+        self.time_eclapse = time.time()
+        #self.gsid = "4uNrb1c01QZjnhvLHZAmvarK09p"
+        self.gsid =  self.get_an_gsid()
+
+'''
+    def change_an_gsid(self):
+        #time eclapsed more than 20 minute
+        if time.time() - self.time_eclapse < 900:
+            return self.gsid
+        else:
+            return self.get_an_gsid()
+'''
 
     def get_an_gsid(self):
-
-        #time eclapsed
-        #if time.time() - self.time_eclapse > 600:
 
         #get ussername and password
         usrname,passwd = self.server.getAccount()
@@ -54,12 +60,14 @@ class Crawler(threading.Thread):
         #simulate the login process
         simulateLoginer = SimulateLoginer(usrname,passwd)        
         #login to the weibo and get gsid
-        self.gsid = simulateLoginer.login()
-        print self.gsid
+        gsid = simulateLoginer.login()
+        print "new gsid ",gsid
         
-        if 0 == self.gsid:
+        if 0 == gsid:
             time.sleep(3)
             self.get_an_gsid()
+        else:
+            return gsid
 
     #type 0 is the seed user
     '''
@@ -99,6 +107,7 @@ class Crawler(threading.Thread):
         url += "gsid=" + self.gsid
 
         print "type1:",url
+        
         html = self.parser.get_html_content(url,0)
         if None != html:
             self.parser.parse_weibo(html,postdata["uid"])
@@ -109,14 +118,14 @@ class Crawler(threading.Thread):
         "rl":"0",
         "vt":"4",
         "uid":uid,
-        "cid":id,
+        "mid":id,
         "type":2
         }
     '''
     def deal_type2(self,postdata):
         #http://weibo.cn/comment/A83UNd82V?uid=2200249730&rl=0&vt=4&gsid=4utD1a1a1I32ESqk4qGQpartGdX&st=af84#cmtfrm
         url = postdata["base_url"]
-        url += postdata["cid"] + "?"
+        url += postdata["mid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
@@ -126,7 +135,7 @@ class Crawler(threading.Thread):
 
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_comment_firstpage(html,postdata["uid"],postdata["cid"])
+            self.parser.parse_comment_firstpage(html,postdata["uid"],postdata["mid"])
 
     '''
         postdata = {
@@ -134,60 +143,65 @@ class Crawler(threading.Thread):
         "rl":"0",
         "vt":"4",
         "uid":uid,
-        "cid":id,
+        "mid":id,
         "type":3
         }
     '''
     def deal_type3(self,postdata):
         url = postdata["base_url"]
-        url += postdata["cid"] + "?"
+        url += postdata["mid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
         url += "gsid=" + self.gsid 
-        print "type2",url
+        print "type3",url
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_repost_firstpage(html,postdata["uid"],postdata["cid"])
+            self.parser.parse_repost_firstpage(html,postdata["uid"],postdata["mid"])
 
     '''
     postdata = {
         "base_url":"http://weibo.cn/comment/",
         "uid":uid,
-        "cid":cid,
+        "mid":mid,
         "page_num":cnt_page_num,
         "type":4
         }
     '''
     def deal_type4(self,postdata):
         url = postdata["base_url"]
-        url += postdata["cid"] + "?"
+        url += postdata["mid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
         url += "page=" + postdata["page_num"] + "&"
-        url += "gsid=" + self.gsid 
+        url += "gsid=" + self.gsid
+
+        print "type4",url
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_comment(html,postdata["uid"],postdata["cid"])
+            self.parser.parse_comment(html,postdata["uid"],postdata["mid"])
 
 
     '''
     postdata = {
         "base_url":"http://weibo.cn/repost/",
         "uid":uid,
-        "cid":cid,
+        "mid":mid,
         "page_num":repost_page_num,
         "type":5
     }
     '''
     def deal_type5(self,postdata):
         url = postdata["base_url"]
-        url += postdata["cid"] + "?"
+        url += postdata["mid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
         url += "page=" + postdata["page_num"] + "&"
-        url += "gsid=" + self.gsid 
+        url += "gsid=" + self.gsid
+
+        print "type5",url
         html = self.parser.get_html_content(url,0)
+
         if None != html:
-            self.parser.parse_repost(html,postdata["uid"],postdata["cid"])
+            self.parser.parse_repost(html,postdata["uid"],postdata["mid"])
                                         
     def run(self):
      #Overwrite run() method, put what you want the thread do here  
@@ -212,8 +226,8 @@ class Crawler(threading.Thread):
 
 
 if __name__ == "__main__":
-    #for i in range(0,1):
-    thread = Crawler()
-    thread.start()
-    #    print "thread  " + str(i) + "started"
-    #    time.sleep(1)  
+    for i in range(0,6):
+        thread = Crawler()
+        thread.start()
+        print "thread  " + str(i) + "started"
+        time.sleep(1)  

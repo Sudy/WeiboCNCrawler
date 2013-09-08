@@ -100,7 +100,6 @@ class Parser(object):
 				if "" != content:
 					id_cnt.append(content)
 					content = ""
-				print mid_match.group(1)	
 				id_cnt.append(mid_match.group(1))
 			elif "" != ct:
 				content += ct.strip()
@@ -109,6 +108,7 @@ class Parser(object):
 		return id_cnt
 
 	def parse_weibo(self,html,uid):
+		print "parse_weibo"	
 		#mid,content
 		mid_content = self.get_weibo_content(html)
 		#comment,repost,like num
@@ -118,6 +118,9 @@ class Parser(object):
 
 		#result
 		total_item_num = len(post_time)
+		#u:uid  m:mid c:content
+		#r:repost l:like co:comment
+		#t:time 
 		data_to_db = {
 			"u":uid,  
 			"m":"",	
@@ -143,15 +146,15 @@ class Parser(object):
 			"rl":"0",
 			"vt":"4",
 			"uid":uid,
-			"cid":mid_content[::2],
+			"mid":mid_content[::2],
 			"type":2
 			}
-			print "parse_weibo"	
+			
 			self.server.addToQueue(json.dumps(postdata))
 
 
 	def parse_weibo_first_page(self,html,uid):
-		print "--------------parse_weibo_first_page"
+		print "parse_weibo_first_page"
 		self.parse_weibo(html,uid)
 		page_num = self.get_page_num(html)
 		
@@ -164,20 +167,22 @@ class Parser(object):
 			"page_num":page_num,
 			"type":1
 			}
-			print postdata
+			#print postdata
 			self.server.addToQueue(json.dumps(postdata))
 			
 			
 
-	def parse_repost(self,html,uid,cid):
-		
+	def parse_repost(self,html,uid,mid):
+		print "parse_repost"
 		uid_name = self.get_post_uid(html)
 		repost_content = self.get_repost_content(html)
 		post_time = self.get_repost_time(html)
-		
+		#u:uid  m:mid 
+		#un:username n:nickname co:comment
+		#t:time
 		data_to_db = {
 			"u":uid,
-			"c":cid,
+			"m":mid,
 			"un":"",
 			"n":"",
 			"co":"",
@@ -190,35 +195,39 @@ class Parser(object):
 				data_to_db["co"] = repost_content[i]
 				data_to_db["t"] = post_time[i]
 				self.dbadapter.insertWeibo(data_to_db)
-		print "parse_repost"
+		
 
 
-	def parse_repost_firstpage(self,html,uid,cid):
-		self.parse_repost(html,uid,cid)
+	def parse_repost_firstpage(self,html,uid,mid):
+		print "parse_repost_firstpage"
+		self.parse_repost(html,uid,mid)
 		repost_page_num = self.get_page_num(html)
 
 		if int(repost_page_num) > 1:
 			postdata = {
 			"base_url":"http://weibo.cn/repost/",
 			"uid":uid,
-			"cid":cid,
+			"mid":mid,
 			"page_num":repost_page_num,
 			"type":5
 			}
-			print "parse_repost_firstpage"
-			print postdata
+			
+			#print postdata
 			self.server.addToQueue(json.dumps(postdata))
 		
 
 
-	def parse_comment(self,html,uid,cid):
+	def parse_comment(self,html,uid,mid):
+		print "parse_comment"
 		content = self.get_comment_content(html)
 		uid_name = self.get_post_uid(html)
 		post_time = self.get_post_time(html)
-
+		#u:uid  m:mid 
+		#un:username n:nickname co:comment
+		#t:time
 		data_to_db = {
 			"u":uid,
-			"c":cid,
+			"m":mid,
 			"un":"",
 			"n":"",
 			"co":"",
@@ -231,22 +240,22 @@ class Parser(object):
 				data_to_db["co"] = content[i]
 				data_to_db["t"] = post_time[i]
 				self.dbadapter.insertWeibo(data_to_db)
-		print "parse_comment"
+		
 
-	def parse_comment_firstpage(self,html,uid,cid):
-		self.parse_comment(html,uid,cid)
+	def parse_comment_firstpage(self,html,uid,mid):
+		self.parse_comment(html,uid,mid)
 		cnt_page_num = self.get_page_num(html)
 		
 		if int(cnt_page_num) > 1:
 			postdata = {
 			"base_url":"http://weibo.cn/comment/",
 			"uid":uid,
-			"cid":cid,
+			"mid":mid,
 			"page_num":cnt_page_num,
 			"type":4
 			}
 			print "parse_comment_firstpage"
-			print postdata
+			#print postdata
 			self.server.addToQueue(json.dumps(postdata))
 
 

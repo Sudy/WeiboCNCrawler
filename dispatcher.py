@@ -10,7 +10,7 @@ class Dispatcher(object):
 	def __init__(self):
 		#a infinit queue
 		self.url_queue = Queue(maxsize=0)
-		self.account_queue = Queue(maxsize = 0)
+		self.account_list = list()
 		
 		self.initAvailableAccount()
 		self.initSeedUser()
@@ -22,7 +22,8 @@ class Dispatcher(object):
 		
 		while "" != line and not line.startswith("#"):
 			line = line.strip().split("\t",1)
-			self.account_queue.put((line[0],line[1]))
+			self.account_list.append((line[0],line[1]))
+			print line[0],line[1]
 			line = fp.readline()
 		fp.close()
 		print "initAvailableAccount successful"
@@ -51,9 +52,9 @@ class Dispatcher(object):
 		json_data = json.loads(postdata)
 
 		if 2 == json_data["type"]:
-			cids = json_data["cid"]
-			for item in cids:
-				json_data["cid"] = item
+			mids = json_data["mid"]
+			for item in mids:
+				json_data["mid"] = item
 				#crawl its comment
 				json_data["base_url"] = "http://weibo.cn/comment/"
 				json_data["type"] = 2
@@ -71,11 +72,10 @@ class Dispatcher(object):
 
 	def getAccount(self):
 		
-		if True == self.account_queue.empty():
+		if len(self.account_list) == 0:
 			return 0,0
 		else:
-			return self.account_queue.get()
-
+			return self.account_list.pop()
 
 	#if the queue is empty and
 	#the client have tried more five time
