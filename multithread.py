@@ -19,7 +19,7 @@ class Crawler(threading.Thread):
         #try up to five times to get a url seed
         self.try_get_url_seed = 0
         #connect the server
-        self.server = xmlrpclib.ServerProxy("http://172.17.161.101:8000")
+        self.server = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
 
 
         self.parser = Parser()
@@ -33,10 +33,16 @@ class Crawler(threading.Thread):
         4:self.deal_type4,
         5:self.deal_type5
         }
+
+        #self.time_eclapse = time.time()
         self.gsid = "4uNrb1c01QZjnhvLHZAmvarK09p"
         #self.get_an_gsid()
 
     def get_an_gsid(self):
+
+        #time eclapsed
+        #if time.time() - self.time_eclapse > 600:
+
         #get ussername and password
         usrname,passwd = self.server.getAccount()
         
@@ -161,7 +167,7 @@ class Crawler(threading.Thread):
         url += "gsid=" + self.gsid 
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_comment(html)
+            self.parser.parse_comment(html,postdata["uid"],postdata["cid"])
 
 
     '''
@@ -181,7 +187,7 @@ class Crawler(threading.Thread):
         url += "gsid=" + self.gsid 
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_repost(html)
+            self.parser.parse_repost(html,postdata["uid"],postdata["cid"])
                                         
     def run(self):
      #Overwrite run() method, put what you want the thread do here  

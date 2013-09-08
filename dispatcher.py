@@ -98,6 +98,6 @@ class Dispatcher(object):
 			return json.dumps(old_postdata)
 
 
-server = SimpleXMLRPCServer(("172.17.161.101",8000),allow_none = True)
+server = SimpleXMLRPCServer(("192.168.3.48",8000),allow_none = True)
 server.register_instance(Dispatcher())
 server.serve_forever()

@@ -6,6 +6,7 @@ import lxml.html as HTML
 import re
 import xmlrpclib
 import json
+from DBAdapter import _DBAdapter
 
 class Parser(object):
 	"""docstring for Parser"""
@@ -24,7 +25,9 @@ class Parser(object):
 
 		self.mid_pattern = re.compile("M_([A-Za-z0-9]{5,9})")
 		self.cid_pattern = re.compile("C_([0-9]{16})")
-		self.server = xmlrpclib.ServerProxy("http://172.17.161.101:8000")
+		#self.uid_pattern = re.compile("/(u/([0-9]{10}) | ([A-Za-z0-9])+)?vt | ([0-9]+))")
+		self.server = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
+		self.dbadapter = _DBAdapter()
 
 
     #get html content of a given url
@@ -109,20 +112,42 @@ class Parser(object):
 		#mid,content
 		mid_content = self.get_weibo_content(html)
 		#comment,repost,like num
-		self.get_repostetc(html)
+		repostetc =  self.get_repostetc(html)
 		#post time
-		self.get_post_time(html)
+		post_time = self.get_post_time(html)
 
-		postdata = {
-		"base_url":"",
-		"rl":"0",
-		"vt":"4",
-		"uid":uid,
-		"cid":mid_content[::2],
-		"type":2
+		#result
+		total_item_num = len(post_time)
+		data_to_db = {
+			"u":uid,  
+			"m":"",	
+			"c":"", 
+			"r":"", 
+			"l":"",
+			"co":"",
+			"t":""
 		}
-		print "parse_weibo"	
-		self.server.addToQueue(json.dumps(postdata))
+		if len(mid_content) and len(repostetc) and total_item_num:
+			for i in range(0,len(post_time) - 1):
+				data_to_db["m"] = mid_content[2*i]
+				data_to_db["c"] = mid_content[2*i + 1]
+				data_to_db["r"] = repostetc[3*i] 
+				data_to_db["co"] = repostetc[3*i + 1]
+				data_to_db["l"] = repostetc[3*i + 2]
+				data_to_db["t"] = post_time[i]
+				self.dbadapter.insertWeibo(data_to_db)
+
+
+			postdata = {
+			"base_url":"",
+			"rl":"0",
+			"vt":"4",
+			"uid":uid,
+			"cid":mid_content[::2],
+			"type":2
+			}
+			print "parse_weibo"	
+			self.server.addToQueue(json.dumps(postdata))
 
 
 	def parse_weibo_first_page(self,html,uid):
@@ -144,16 +169,32 @@ class Parser(object):
 			
 			
 
-	def parse_repost(self,html):
+	def parse_repost(self,html,uid,cid):
 		
-		self.get_post_uid(html)
-		self.get_repost_content(html)
-		self.get_repost_time(html)
+		uid_name = self.get_post_uid(html)
+		repost_content = self.get_repost_content(html)
+		post_time = self.get_repost_time(html)
+		
+		data_to_db = {
+			"u":uid,
+			"c":cid,
+			"un":"",
+			"n":"",
+			"co":"",
+			"t":""
+		}
+		if len(uid_name) and len(repost_content) and len(post_time):
+			for i in range(0,len(post_time) - 1):
+				data_to_db["un"] = uid_name[2*i]
+				data_to_db["n"] = uid_name[2*i + 1]
+				data_to_db["co"] = repost_content[i]
+				data_to_db["t"] = post_time[i]
+				self.dbadapter.insertWeibo(data_to_db)
 		print "parse_repost"
 
 
 	def parse_repost_firstpage(self,html,uid,cid):
-		self.parse_repost(html)
+		self.parse_repost(html,uid,cid)
 		repost_page_num = self.get_page_num(html)
 
 		if int(repost_page_num) > 1:
@@ -170,14 +211,30 @@ class Parser(object):
 		
 
 
-	def parse_comment(self,html):
-		self.get_comment_content(html)
-		self.get_post_uid(html)
-		self.get_post_time(html)
+	def parse_comment(self,html,uid,cid):
+		content = self.get_comment_content(html)
+		uid_name = self.get_post_uid(html)
+		post_time = self.get_post_time(html)
+
+		data_to_db = {
+			"u":uid,
+			"c":cid,
+			"un":"",
+			"n":"",
+			"co":"",
+			"t":""
+		}
+		if len(uid_name) and len(content) and len(post_time):
+			for i in range(0,len(post_time) - 1):
+				data_to_db["un"] = uid_name[2*i]
+				data_to_db["n"] = uid_name[2*i + 1]
+				data_to_db["co"] = content[i]
+				data_to_db["t"] = post_time[i]
+				self.dbadapter.insertWeibo(data_to_db)
 		print "parse_comment"
 
 	def parse_comment_firstpage(self,html,uid,cid):
-		self.parse_comment(html)
+		self.parse_comment(html,uid,cid)
 		cnt_page_num = self.get_page_num(html)
 		
 		if int(cnt_page_num) > 1:
@@ -198,10 +255,10 @@ class Parser(object):
 			headers=self.headers)
 		html_text = urllib2.urlopen(req).read()
 
-		ctt = self.get_page_num(html_text)
+		ctt = self.get_post_uid(html_text)
 		print ctt
-		#for c in ctt:
-		#	print c
+		for c in ctt:
+			print c
 		
 if __name__ == '__main__':
 	p = Parser()
