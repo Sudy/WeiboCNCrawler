@@ -48,8 +48,26 @@ class Dispatcher(object):
 		
 	def addToQueue(self,postdata):
 
-		print "seed data ",postdata,"add to queue"
-		self.url_queue.put(postdata)
+		json_data = json.loads(postdata)
+
+		if 2 == json_data["type"]:
+			cids = json_data["cid"]
+			for item in cids:
+				json_data["cid"] = item
+				#crawl its comment
+				json_data["base_url"] = "http://weibo.cn/comment/"
+				json_data["type"] = 2
+				print "seed data", json_data,"add to queue"
+				self.url_queue.put(json.dumps(json_data))
+
+				#crawl its repost
+				json_data["base_url"] = "http://weibo.cn/repost/"
+				json_data["type"] = 3
+				print "seed data ",json_data,"add to queue"
+				self.url_queue.put(json.dumps(json_data))
+		else:
+			print "seed data ",postdata,"add to queue"
+			self.url_queue.put(postdata)
 
 	def getAccount(self):
 		
@@ -67,7 +85,8 @@ class Dispatcher(object):
 			return 0
 		else:
 			print "current size" + str(self.url_queue.qsize() - 1)
-			postdata =  self.url_queue.get()
+
+			postdata =  json.loads(self.url_queue.get())
 
 			#save the value to old_postdata
 			old_postdata = postdata
@@ -76,7 +95,7 @@ class Dispatcher(object):
 				#change the page_num value and save it back
 				postdata["page_num"] = str(int(postdata["page_num"]) - 1)
 				self.addToQueue(json.dumps(postdata))  
-			return old_postdata
+			return json.dumps(old_postdata)
 
 
 server = SimpleXMLRPCServer(("172.17.161.101",8000),allow_none = True)

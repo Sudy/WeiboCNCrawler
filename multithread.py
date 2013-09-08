@@ -7,6 +7,7 @@ from weibocn import SimulateLoginer
 from parser import Parser
 import time
 import random
+import json
 
 
 class Crawler(threading.Thread):
@@ -30,7 +31,7 @@ class Crawler(threading.Thread):
         2:self.deal_type2,
         3:self.deal_type3,
         4:self.deal_type4,
-        4:self.deal_type5,
+        5:self.deal_type5
         }
         self.gsid = "4uNrb1c01QZjnhvLHZAmvarK09p"
         #self.get_an_gsid()
@@ -88,7 +89,7 @@ class Crawler(threading.Thread):
         url = postdata["base_url"]
         url += postdata["uid"] + "?"
         url += "vt=" + postdata["vt"] + "&"
-        url += "page=" + postdata[page_num] + "&"
+        url += "page=" + postdata["page_num"] + "&"
         url += "gsid=" + self.gsid
 
         print "type1:",url
@@ -156,8 +157,6 @@ class Crawler(threading.Thread):
         url = postdata["base_url"]
         url += postdata["cid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
-        url += "rl=" + postdata["rl"] + "&"
-        url += "vt=" + postdata["vt"] + "&"
         url += "page=" + postdata["page_num"] + "&"
         url += "gsid=" + self.gsid 
         html = self.parser.get_html_content(url,0)
@@ -178,8 +177,6 @@ class Crawler(threading.Thread):
         url = postdata["base_url"]
         url += postdata["cid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
-        url += "rl=" + postdata["rl"] + "&"
-        url += "vt=" + postdata["vt"] + "&"
         url += "page=" + postdata["page_num"] + "&"
         url += "gsid=" + self.gsid 
         html = self.parser.get_html_content(url,0)
@@ -199,7 +196,8 @@ class Crawler(threading.Thread):
                 continue
             else:
                 #deal with the data
-                self.func_map[item["type"]](item)
+                json_data = json.loads(item)
+                self.func_map[int(json_data["type"])](json_data)
                 time.sleep(random.randint(3,5))
 
 

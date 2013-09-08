@@ -22,7 +22,7 @@ class Parser(object):
 						   "repost_content":"//div[@class='c']//text()[not(parent::span)]"
 		}
 
-		self.mid_pattern = re.compile("M_([A-Za-z0-9]{9})")
+		self.mid_pattern = re.compile("M_([A-Za-z0-9]{5,9})")
 		self.cid_pattern = re.compile("C_([0-9]{16})")
 		self.server = xmlrpclib.ServerProxy("http://172.17.161.101:8000")
 
@@ -34,6 +34,7 @@ class Parser(object):
 			print "try " + url + " for more than five times"
 			return None
 		try:
+			print "get_html_content ",url
 			req = urllib2.Request(url, headers=self.headers)
 			return urllib2.urlopen(req,timeout=10).read()
 		except:
@@ -73,11 +74,12 @@ class Parser(object):
 		for i in range(0,len(num)-1):
 			if 3 != i%4:
 				repostetc.append(num[i])
-		return repostetc[0::4]
+		return repostetc#[0::4]
 
 	def get_page_num(self,html):
 		page_num = HTML.fromstring(html).xpath(self.xpath_rule["page_num"])
-		if None != page_num and int(page_num[0]) > 1:
+		
+		if 0 < len(page_num) and int(page_num[0]) > 1:
 			return page_num[0]
 		else:
 			return 0
@@ -95,6 +97,7 @@ class Parser(object):
 				if "" != content:
 					id_cnt.append(content)
 					content = ""
+				print mid_match.group(1)	
 				id_cnt.append(mid_match.group(1))
 			elif "" != ct:
 				content += ct.strip()
@@ -115,27 +118,12 @@ class Parser(object):
 		"rl":"0",
 		"vt":"4",
 		"uid":uid,
-		"cid":"",
+		"cid":mid_content[::2],
 		"type":2
 		}
-
-
 		print "parse_weibo"	
-		for item in mid_content[::2]:
-			postdata["cid"] = item
-			#crawl its comment
-			postdata["base_url"] = "http://weibo.cn/comment/"
-			postdata["type"] = 2
-			print postdata
-			self.server.addToQueue(json.dumps(postdata))
+		self.server.addToQueue(json.dumps(postdata))
 
-			#crawl its repost
-			postdata["base_url"] = "http://weibo.cn/repost/"
-			postdata["type"] = 3
-			print postdata
-			self.server.addToQueue(json.dumps(postdata))
-
-		
 
 	def parse_weibo_first_page(self,html,uid):
 		print "--------------parse_weibo_first_page"
@@ -206,14 +194,14 @@ class Parser(object):
 
 
 	def test(self):
-		req = urllib2.Request("http://weibo.cn/repost/A8noHzU9c?uid=2052120021&rl=0&vt=4&gsid=4uOd68b81uHd0N3WQQs0JartGdX&st=6317",\
+		req = urllib2.Request("http://weibo.cn/repost/2xcxW?uid=1710546672&rl=0&vt=4&gsid=4uNrb1c01QZjnhvLHZAmvarK09p",\
 			headers=self.headers)
 		html_text = urllib2.urlopen(req).read()
 
-		ctt = self.get_repost_time(html_text)
-		#print ctt
-		for c in ctt:
-			print c
+		ctt = self.get_page_num(html_text)
+		print ctt
+		#for c in ctt:
+		#	print c
 		
 if __name__ == '__main__':
 	p = Parser()
