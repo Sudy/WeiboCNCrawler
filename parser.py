@@ -18,12 +18,12 @@ class Parser(object):
 						   "repostetc":"//div[@class='c']/div[last()]/a[position()>last()-4]/text()",
 						   "page_num":"//input[@name='mp']/@value",
 						   "comment_content":"//div[@class='c']/@id | //div[@class='c']/span[@class='ctt']//text()",
-						   "user_id":"//div[@class='c']/a[position()=1]/@href | //div[@class='c']/a[position()=1]/text()",
+						   "user_id":"//div[@class='c']/a[1]/@href | //div[@class='c']/a[1]/text()",
 						   "repost_time":"//div[@class='c']/span[@class='ct']/text()",
-						   "repost_content":"//div[@class='c']//text()[not(parent::span)]"
+						   "repost_content":"//div[@class='c']//text()[not(parent::span) and not(parent::a)]"
 		}
 
-		self.mid_pattern = re.compile("M_([A-Za-z0-9]{5,9})")
+		self.mid_pattern = re.compile("M_([A-Za-z0-9]{3,9})")
 		self.cid_pattern = re.compile("C_([0-9]{16})")
 		#self.uid_pattern = re.compile("/(u/([0-9]{10}) | ([A-Za-z0-9])+)?vt | ([0-9]+))")
 		self.server = xmlrpclib.ServerProxy("http://192.168.3.48:8000")
@@ -64,7 +64,7 @@ class Parser(object):
 
 	def get_repost_content(self,html):
 		repost_cnt = HTML.fromstring(html).xpath(self.xpath_rule["repost_content"])
-		return repost_cnt[3:]
+		return repost_cnt[6:]
    
 	def get_weibo_content(self,html):
 		#get weibo content
@@ -131,12 +131,12 @@ class Parser(object):
 			"t":""
 		}
 		if len(mid_content) and len(repostetc) and total_item_num:
-			for i in range(0,len(post_time) - 1):
+			for i in range(0,total_item_num - 1):
 				data_to_db["m"] = mid_content[2*i]
 				data_to_db["c"] = mid_content[2*i + 1]
-				data_to_db["r"] = repostetc[3*i] 
-				data_to_db["co"] = repostetc[3*i + 1]
-				data_to_db["l"] = repostetc[3*i + 2]
+				data_to_db["l"] = repostetc[3*i] 
+				data_to_db["r"] = repostetc[3*i + 1]
+				data_to_db["co"] = repostetc[3*i + 2]
 				data_to_db["t"] = post_time[i]
 				self.dbadapter.insertWeibo(data_to_db)
 
@@ -189,13 +189,18 @@ class Parser(object):
 			"t":""
 		}
 		if len(uid_name) and len(repost_content) and len(post_time):
+			print len(uid_name),len(post_time)
+			if len(uid_name)/2 != len(post_time):
+				post_time = post_time[1:-2]
+				repost_content = repost_content[1:-2]
+
 			for i in range(0,len(post_time) - 1):
 				data_to_db["un"] = uid_name[2*i]
 				data_to_db["n"] = uid_name[2*i + 1]
 				data_to_db["co"] = repost_content[i]
 				data_to_db["t"] = post_time[i]
 				self.dbadapter.insertWeibo(data_to_db)
-		
+
 
 
 	def parse_repost_firstpage(self,html,uid,mid):
@@ -260,12 +265,11 @@ class Parser(object):
 
 
 	def test(self):
-		req = urllib2.Request("http://weibo.cn/repost/2xcxW?uid=1710546672&rl=0&vt=4&gsid=4uNrb1c01QZjnhvLHZAmvarK09p",\
+		req = urllib2.Request("http://weibo.cn/repost/A8D5YjdiM?uid=1713926427&rl=0&vt=4&gsid=4utJ1a1a1Ptk3NNcr0YtCarJS1T",\
 			headers=self.headers)
 		html_text = urllib2.urlopen(req).read()
 
 		ctt = self.get_post_uid(html_text)
-		print ctt
 		for c in ctt:
 			print c
 		

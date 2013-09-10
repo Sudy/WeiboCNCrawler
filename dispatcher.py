@@ -17,13 +17,13 @@ class Dispatcher(object):
 
 	#get all the available account
 	def initAvailableAccount(self):
-		fp = open("account","r")
+		fp = open("account1","r")
 		line = fp.readline()
 		
 		while "" != line and not line.startswith("#"):
-			line = line.strip().split("\t",1)
-			self.account_list.append((line[0],line[1]))
-			print line[0],line[1]
+			line = line.strip()#.split("\t",1)
+			self.account_list.append(line)
+			print line
 			line = fp.readline()
 		fp.close()
 		print "initAvailableAccount successful"
@@ -73,7 +73,7 @@ class Dispatcher(object):
 	def getAccount(self):
 		
 		if len(self.account_list) == 0:
-			return 0,0
+			return 0
 		else:
 			return self.account_list.pop()
 

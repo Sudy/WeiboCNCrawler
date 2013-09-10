@@ -5,9 +5,10 @@ import xmlrpclib
 import threading  
 from weibocn import SimulateLoginer
 from parser import Parser
-#import time
+import time
 import random
 import json
+from DBAdapter import _DBAdapter
 
 
 class Crawler(threading.Thread):
@@ -24,6 +25,8 @@ class Crawler(threading.Thread):
 
         self.parser = Parser()
 
+        self.dbadapter = _DBAdapter()
+
         #function  map dealing with different type
         self.func_map = { 
         0:self.deal_type0,
@@ -34,21 +37,28 @@ class Crawler(threading.Thread):
         5:self.deal_type5
         }
 
-        self.time_eclapse = time.time()
+        #self.time_eclapse = time.time()
         #self.gsid = "4uNrb1c01QZjnhvLHZAmvarK09p"
         self.gsid =  self.get_an_gsid()
 
-'''
+    '''
     def change_an_gsid(self):
         #time eclapsed more than 20 minute
         if time.time() - self.time_eclapse < 900:
             return self.gsid
         else:
             return self.get_an_gsid()
-'''
+    '''
 
     def get_an_gsid(self):
 
+        gsid = self.server.getAccount()
+        if 0 == gsid or None == gsid:
+            time.sleep(3)
+            self.get_an_gsid()
+        else:
+            return gsid
+        '''
         #get ussername and password
         usrname,passwd = self.server.getAccount()
         
@@ -63,11 +73,8 @@ class Crawler(threading.Thread):
         gsid = simulateLoginer.login()
         print "new gsid ",gsid
         
-        if 0 == gsid:
-            time.sleep(3)
-            self.get_an_gsid()
-        else:
-            return gsid
+
+        '''
 
     #type 0 is the seed user
     '''
@@ -84,6 +91,7 @@ class Crawler(threading.Thread):
         url = postdata["base_url"]
         url += postdata["uid"] + "?"
         url += "vt=" + postdata["vt"] + "&"
+        print self.gsid
         url += "gsid=" + self.gsid
         print "type0:",url 
         html = self.parser.get_html_content(url,0)
@@ -104,14 +112,21 @@ class Crawler(threading.Thread):
         url += postdata["uid"] + "?"
         url += "vt=" + postdata["vt"] + "&"
         url += "page=" + postdata["page_num"] + "&"
+        print self.gsid
         url += "gsid=" + self.gsid
 
         print "type1:",url
-        
+
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_weibo(html,postdata["uid"])
 
+            print "parse weibo url",url
+            try:
+                self.parser.parse_weibo(html,postdata["uid"])
+            except:
+                print "-------------------------Errror WEIBO---------------"
+                print url
+                self.dbadapter.insertError({"url":url})
     '''
         postdata = {
         "base_url":"http://weibo.cn/comment/",
@@ -129,14 +144,17 @@ class Crawler(threading.Thread):
         url += "uid=" + postdata["uid"] + "&"
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
+        print self.gsid
         url += "gsid=" + self.gsid 
 
         print "type2",url
 
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_comment_firstpage(html,postdata["uid"],postdata["mid"])
-
+            try:
+                self.parser.parse_comment_firstpage(html,postdata["uid"],postdata["mid"])
+            except:
+                self.dbadapter.insertError({"url":url})
     '''
         postdata = {
         "base_url":"http://weibo.cn/repost/",
@@ -153,11 +171,18 @@ class Crawler(threading.Thread):
         url += "uid=" + postdata["uid"] + "&"
         url += "rl=" + postdata["rl"] + "&"
         url += "vt=" + postdata["vt"] + "&"
+        print self.gsid
         url += "gsid=" + self.gsid 
         print "type3",url
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_repost_firstpage(html,postdata["uid"],postdata["mid"])
+            try:
+                self.parser.parse_repost_firstpage(html,postdata["uid"],postdata["mid"])
+            except:
+                print "------------------------Errror REPOST First--------------"
+                print url
+                self.dbadapter.insertError({"url":url})
+
 
     '''
     postdata = {
@@ -173,12 +198,19 @@ class Crawler(threading.Thread):
         url += postdata["mid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
         url += "page=" + postdata["page_num"] + "&"
+        print self.gsid
         url += "gsid=" + self.gsid
 
         print "type4",url
         html = self.parser.get_html_content(url,0)
         if None != html:
-            self.parser.parse_comment(html,postdata["uid"],postdata["mid"])
+            try:
+                self.parser.parse_comment(html,postdata["uid"],postdata["mid"])
+            except:
+                print "------------------------Errror COMMENT--------------"
+                print url
+                self.dbadapter.insertError({"url":url})
+
 
 
     '''
@@ -195,13 +227,19 @@ class Crawler(threading.Thread):
         url += postdata["mid"] + "?"
         url += "uid=" + postdata["uid"] + "&"
         url += "page=" + postdata["page_num"] + "&"
+        print self.gsid
         url += "gsid=" + self.gsid
 
         print "type5",url
         html = self.parser.get_html_content(url,0)
 
         if None != html:
-            self.parser.parse_repost(html,postdata["uid"],postdata["mid"])
+            try:
+                self.parser.parse_repost(html,postdata["uid"],postdata["mid"])
+            except:
+                print "------------------------Errror REPOST--------------"
+                print url
+                self.dbadapter.insertError({"url":url})
                                         
     def run(self):
      #Overwrite run() method, put what you want the thread do here  
